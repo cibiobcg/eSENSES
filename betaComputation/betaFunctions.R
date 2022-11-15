@@ -59,7 +59,7 @@ computeGermlineDistributions <- function(germline,label="germline",snps.list=c()
     cat(germline[i],"\n")
     geno = fread(germline[i])
     geno = geno[which(geno$af > 0.2 & geno$af < 0.8),]
-    # adjust af with respect to the main peak and center to 0.5
+    # adjust af with respect to the main peak and center to 0.5 (?)
     d = density(geno$af,bw="SJ")
     geno$af = geno$af+(0.5-(d$x[which(d$y==max(d$y))]))
     # exclude snps in snps.list
