@@ -1,8 +1,3 @@
-## Copyright 2018-2023, Alessandro Romanel.
-## Author: Alessandro Romanel
-## Contributors:
-## Francesco Orlando (add of paired test option in betaEstimate function)
-
 library(data.table)
 library(dplyr)
 
