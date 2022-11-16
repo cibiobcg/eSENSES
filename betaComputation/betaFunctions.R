@@ -51,17 +51,19 @@ computeBeta <- function(cov,afs,rsid,germ.distr,p.thr=0.01,paired=FALSE,times=1)
   return(l.beta)
 }
 
-computeGermlineDistributions <- function(germline,label="germline",snps.list=c())
+computeGermlineDistributions <- function(germline,label="germline",snps.list=c(), min.af=0.2, max.af=0.8, center.af=TRUE)
 {
   snps = c()
   for(i in 1:length(germline))
   {
     cat(germline[i],"\n")
     geno = fread(germline[i])
-    geno = geno[which(geno$af > 0.2 & geno$af < 0.8),]
-    # adjust af with respect to the main peak and center to 0.5 (?)
-    d = density(geno$af,bw="SJ")
-    geno$af = geno$af+(0.5-(d$x[which(d$y==max(d$y))]))
+    geno = geno[which(geno$af > min.af & geno$af < max.af),]
+    if (center.af){
+      # adjust af with respect to the main peak and center to 0.5 (?)
+      d = density(geno$af,bw="SJ")
+      geno$af = geno$af+(0.5-(d$x[which(d$y==max(d$y))]))
+    }
     # exclude snps in snps.list
     geno = geno[which(!geno$rsid%in%snps.list),]
     snps = union(snps,paste(geno$chr,geno$pos,geno$rsid,sep="-"))
