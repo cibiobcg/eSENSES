@@ -25,7 +25,7 @@ betaEstimate <- function(snps.distr,beta.distr,p.thr=0.01,paired=FALSE)
   return(list(c(beta,betas[greater],betas[less]),length(snps.distr),evidence))
 }
 
-computeBeta <- function(cov,afs,rsid,germ.distr,p.thr=0.01,paired=FALSE,times=1)
+computeBeta <- function(cov,afs,rsid,germ.distr,p.thr=0.01,paired=FALSE,times=1, verbose=0)
 { # Computes Beta of a given sample's SNPs pileup based on previously built reference distribution data
   ### Input
   # 1) cov = cov vector of sample's SNPs
@@ -35,6 +35,7 @@ computeBeta <- function(cov,afs,rsid,germ.distr,p.thr=0.01,paired=FALSE,times=1)
   # 5) p.thr = p-value threshold used in betaEstimate() calculation
   # 6) paired = whether to used paired wilcox in betaEstimate, default=F
   # 7) times = number of times to repeat betaEstimate(), default=1, if greater returns vector of mean values
+  # 8) verbose = level of runtime output display
   ### Output
   # Returns a vector of elements:
   # 1) beta = beta estimate of given sample
@@ -51,12 +52,14 @@ computeBeta <- function(cov,afs,rsid,germ.distr,p.thr=0.01,paired=FALSE,times=1)
   
   if(length(afs)>=10)
   {
-    beta.distr = list()
-    for(kk in 1:times)
+    # Calculate beta.distr n times 
+    beta.distr = lapply(1:times, function(kk)
     {
-      beta.distr[[length(beta.distr)+1]] = generateBetaDistr(germ.distr,rsid,cov)
-      beta.distr[[length(beta.distr)]] = monotoneBetaDistr(beta.distr[[length(beta.distr)]])
-    }
+      beta.distr.tmp = generateBetaDistr(germ.distr,rsid,cov)
+      beta.distr.tmp = monotoneBetaDistr(beta.distr.tmp)
+      return(beta.distr.tmp)
+    })
+    # sum up beta.distr calculation
     beta.estimations = lapply(beta.distr,function(x) unlist(betaEstimate(snps.distr=afs,beta.distr=x,p.thr=p.thr,paired=paired)))
     beta.estimations = matrix(unlist(beta.estimations),ncol=length(beta.estimations[[1]]),byrow = T)
     beta.estimations = apply(beta.estimations,2,mean)
@@ -66,6 +69,12 @@ computeBeta <- function(cov,afs,rsid,germ.distr,p.thr=0.01,paired=FALSE,times=1)
     l.beta = c(NA,NA,NA,NA,FALSE,mean(cov))
   }
   names(l.beta) = c("beta", "error.min", "error.max", "n.snps", "evidence", "cov.mean")
+  # display outputs
+  if (verbose > 0 & length(beta.distr) > 0){
+    for (kk in 1:length(beta.distr)){
+      boxplot(beta.distr[[kk]], xlab="% Tumor Content", ylab="Allelic Fraction", main=paste("Simulated reference", kk), pch = 20)
+    }
+  }
   return(l.beta)
 }
 
@@ -140,11 +149,10 @@ computeGermlineDistributions <- function(germline,label="germline",snps.list=c()
 generateBetaDistr <- function(germ.distr,snps,covs)
 {
   rep = 1
-  beta.distr = list()
   t.cov = rep(covs,each=rep)
   t.af = as.numeric(sapply(rep(snps,each=rep),function(x) germ.distr[[1]]$af.mean[which(germ.distr[[1]]$rsid==x)]))
   
-  for(beta in seq(1,0.01,-0.01))
+  beta.distr = lapply(seq(1,0.01,-0.01), function(beta)
   {
     tumor = t.cov
     tumor.adm = round(tumor*beta) 
@@ -171,8 +179,8 @@ generateBetaDistr <- function(germ.distr,snps,covs)
     af.mirror=tumor.alt/(tumor.ref+tumor.alt)
     af.mirror[which(af.mirror<0.5)] = 1-af.mirror[which(af.mirror<0.5)]
     
-    beta.distr[[length(beta.distr)+1]] = af.mirror
-  }
+    return(af.mirror)
+  })
   return(beta.distr)
 }
 
