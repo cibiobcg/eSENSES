@@ -70,7 +70,7 @@ computeBeta <- function(cov,afs,rsid,germ.distr,p.thr=0.01,paired=FALSE,times=1,
   }
   names(l.beta) = c("beta", "error.min", "error.max", "n.snps", "evidence", "cov.mean")
   # display outputs
-  if (verbose > 0 & length(beta.distr) > 0){
+  if (verbose > 0 & exists("beta.distr") > 0){
     for (kk in 1:length(beta.distr)){
       boxplot(beta.distr[[kk]], xlab="% Tumor Content", ylab="Allelic Fraction", main=paste("Simulated reference", kk), pch = 20)
     }
