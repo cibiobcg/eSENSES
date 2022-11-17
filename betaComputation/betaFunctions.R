@@ -26,7 +26,24 @@ betaEstimate <- function(snps.distr,beta.distr,p.thr=0.01,paired=FALSE)
 }
 
 computeBeta <- function(cov,afs,rsid,germ.distr,p.thr=0.01,paired=FALSE,times=1)
-{  
+{ # Computes Beta of a given sample's SNPs pileup based on previously built reference distribution data
+  ### Input
+  # 1) cov = cov vector of sample's SNPs
+  # 2) afs = af vector of sample's SNPs
+  # 3) rsid = rsid vector of sample's SNPs
+  # 4) germ.distr = germline snps distribution built with computeGermlineDistributions()
+  # 5) p.thr = p-value threshold used in betaEstimate() calculation
+  # 6) paired = whether to used paired wilcox in betaEstimate, default=F
+  # 7) times = number of times to repeat betaEstimate(), default=1, if greater returns vector of mean values
+  ### Output
+  # Returns a vector of elements:
+  # 1) beta = beta estimate of given sample
+  # 2) error.min = lower limit of estimated beta error interval
+  # 3) error.max = upper limit of estimated beta error interval
+  # 4) n.snps = number of snps used for estimation
+  # 5) evidence = how many times SNPs were estimated > 0% tumor content, in percentage (0 to 1)
+  # 6) cov.mean = mean coverage of used SNPs for estimation
+  
   afs[which(afs<0.5)] = 1-afs[which(afs<0.5)]
   cov = cov[which(rsid%in%germ.distr[[1]][,1])]
   afs = afs[which(rsid%in%germ.distr[[1]][,1])]
@@ -48,11 +65,25 @@ computeBeta <- function(cov,afs,rsid,germ.distr,p.thr=0.01,paired=FALSE,times=1)
   {
     l.beta = c(NA,NA,NA,NA,FALSE,mean(cov))
   }
+  names(l.beta) = c("beta", "error.min", "error.max", "n.snps", "evidence", "cov.mean")
   return(l.beta)
 }
 
-computeGermlineDistributions <- function(germline,label="germline",snps.list=c(), min.af=0.2, max.af=0.8, center.af=TRUE)
-{
+computeGermlineDistributions <- function(germline,label="germline",snps.list=c(), min.af=0.2, max.af=0.8, center.af=TRUE, cov.bin=0.1)
+{ # Computes SNPs reference distribution data
+  ### Input
+  # 1) germline = list of germline snps pileup paths
+  # 2) snps.list = vector of snps (rsid) to NOT include in computation
+  # 3) min.af = lower limit to filter het af
+  # 4) max.af = upper limit to filter het af
+  # 5) center.af = determines if af distributions should be centered to 0.5 or not
+  # 6) cov.bin = dimension of coverage bins over total, default 10% (0.1)
+  ### Output
+  # Returns a list of three elements:
+  # 1) data.frame of snps with af.mean, af.cv (variant coefficient {mean/sd}), af.freq (percentage of het samples), af.alt (count of het samples), cov.mean
+  # 2) Standard deviation af for each binned coverage in 3)
+  # 3) Binned coverage
+  
   snps = c()
   for(i in 1:length(germline))
   {
@@ -84,14 +115,14 @@ computeGermlineDistributions <- function(germline,label="germline",snps.list=c()
                     rsid=sapply(snps,function(x) strsplit(x,"\\-")[[1]][3]),stringsAsFactors = FALSE)
   isort = match(stats.tot$rsid,snps$rsid)
   snps = snps[isort,]
-  cat(all(snps$rsid==stats.tot$rsid),"\n")
+  cat("All SNPs kept? : ", all(snps$rsid==stats.tot$rsid),"\n")
   
   stats.tot = as.data.frame(stats.tot)
   
   af = unlist(stats.tot[,seq(2,ncol(stats.tot),by=2)])
   cov = unlist(stats.tot[,seq(3,ncol(stats.tot),by=2)])
   
-  cov.inter = quantile(cov,prob=seq(0,1,0.1),na.rm = T)
+  cov.inter = quantile(cov,prob=seq(0,1,cov.bin),na.rm = T)
   cov.inter[1] = 0
   af.sd.cov = sapply(1:(length(cov.inter)-1),function(i) sd(af[which(cov>=cov.inter[i]&cov<cov.inter[i+1])],na.rm = T))
   rsid.af.stats = data.frame(rsid = stats.tot$rsid, chr = snps$chr, pos = as.numeric(snps$pos),
@@ -103,7 +134,7 @@ computeGermlineDistributions <- function(germline,label="germline",snps.list=c()
                              cov.mean = apply(stats.tot[,seq(3,ncol(stats.tot),by=2)],1,function(x) mean(x,na.rm = T)),
                              stringsAsFactors = FALSE)
   
-  return(list(rsid.af.stats,af.sd.cov,cov.inter))
+  return(list("af.stats"=rsid.af.stats,"af.sd"=af.sd.cov,"cov.inter"=cov.inter))
 }
 
 generateBetaDistr <- function(germ.distr,snps,covs)
