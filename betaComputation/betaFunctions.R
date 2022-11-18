@@ -25,7 +25,7 @@ betaEstimate <- function(snps.distr,beta.distr,p.thr=0.01,paired=FALSE)
   return(list(c(beta,betas[greater],betas[less]),length(snps.distr),evidence))
 }
 
-computeBeta <- function(cov,afs,rsid,germ.distr,p.thr=0.01,paired=FALSE,times=1, verbose=0)
+computeBeta <- function(cov,afs,rsid,germ.distr,p.thr=0.01,paired=FALSE,times=1,min.snps=10, verbose=0)
 { # Computes Beta of a given sample's SNPs pileup based on previously built reference distribution data
   ### Input
   # 1) cov = cov vector of sample's SNPs
@@ -50,7 +50,7 @@ computeBeta <- function(cov,afs,rsid,germ.distr,p.thr=0.01,paired=FALSE,times=1,
   afs = afs[which(rsid%in%germ.distr[[1]][,1])]
   rsid = rsid[which(rsid%in%germ.distr[[1]][,1])]
   
-  if(length(afs)>=10)
+  if(length(afs)>=min.snps)
   {
     # Calculate beta.distr n times 
     beta.distr = lapply(1:times, function(kk)
@@ -78,7 +78,7 @@ computeBeta <- function(cov,afs,rsid,germ.distr,p.thr=0.01,paired=FALSE,times=1,
   return(l.beta)
 }
 
-computeGermlineDistributions <- function(germline,label="germline",snps.list=c(), min.af=0.2, max.af=0.8, center.af=TRUE, cov.bin=0.1)
+computeGermlineDistributions <- function(germline,label="germline",snps.list=c(), min.af=0.2, max.af=0.8, center.af=TRUE, cov.bin=0.1, verbose=1)
 { # Computes SNPs reference distribution data
   ### Input
   # 1) germline = list of germline snps pileup paths
@@ -96,16 +96,18 @@ computeGermlineDistributions <- function(germline,label="germline",snps.list=c()
   snps = c()
   for(i in 1:length(germline))
   {
-    cat(germline[i],"\n")
+    if (verbose > 0){
+      cat(germline[i],"\n")
+    }
     geno = fread(germline[i])
-    geno = geno[which(geno$af > min.af & geno$af < max.af),]
+    geno = geno[af > min.af & af < max.af]
     if (center.af){
       # adjust af with respect to the main peak and center to 0.5 (?)
       d = density(geno$af,bw="SJ")
       geno$af = geno$af+(0.5-(d$x[which(d$y==max(d$y))]))
     }
     # exclude snps in snps.list
-    geno = geno[which(!geno$rsid%in%snps.list),]
+    geno = geno[!rsid%in%snps.list]
     snps = union(snps,paste(geno$chr,geno$pos,geno$rsid,sep="-"))
     stats = geno[,c("rsid","af","cov")]
     if(i==1)
@@ -113,7 +115,7 @@ computeGermlineDistributions <- function(germline,label="germline",snps.list=c()
       stats.tot = stats
     } else
     {
-      stats.tot = full_join(stats.tot,stats,by="rsid")
+      stats.tot = merge.data.table(stats.tot,stats,by="rsid", all = T)
     }
     colnames(stats.tot)[2*i] = paste("af",germline[i],sep="-")
     colnames(stats.tot)[2*i+1] = paste("cov",germline[i],sep="-")
@@ -124,7 +126,9 @@ computeGermlineDistributions <- function(germline,label="germline",snps.list=c()
                     rsid=sapply(snps,function(x) strsplit(x,"\\-")[[1]][3]),stringsAsFactors = FALSE)
   isort = match(stats.tot$rsid,snps$rsid)
   snps = snps[isort,]
-  cat("All SNPs kept? : ", all(snps$rsid==stats.tot$rsid),"\n")
+  if (verbose > 0){
+    cat("All SNPs kept? : ", all(snps$rsid==stats.tot$rsid),"\n")
+  }
   
   stats.tot = as.data.frame(stats.tot)
   
