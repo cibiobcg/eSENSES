@@ -1,4 +1,4 @@
-sampleAfFocalBetaAf = function(tumors, germ.distr, focal_bed, gene, savepath){
+sampleAfFocalBetaAf = function(tumors, germ.distr, focal_bed, gene, savepath, center.af=T){
   # takes tumor paths vector, germ.distr, bed of snps in genes with GENE column, wanted gene, savepath
   # produces a pdf for gene with one page for each tumor sample of its total af distribution plus beta scores and af of snps used in beta
   gene.rsid = focal_bed[focal_bed$genes == gene, "rsid"]
@@ -6,6 +6,11 @@ sampleAfFocalBetaAf = function(tumors, germ.distr, focal_bed, gene, savepath){
   for (t in tumors){
     df = fread(t, data.table = F)
     df = df[df$af >0.2 & df$af <0.8,]
+    if (center.af){
+      # adjust af with respect to the main peak and center to 0.5 (?)
+      d = density(df$af,bw="SJ")
+      df$af = df$af+(0.5-(d$x[which(d$y==max(d$y))]))
+    }
     n.split = stringr::str_split(t, "/")[[1]]
     n = n.split[length(n.split)-1]
     df.gene = df[df$rsid %in% gene.rsid,]
