@@ -2,6 +2,7 @@ library(data.table)
 library(DNAcopy)
 library(patchwork)
 library(ggplot2)
+library(pbmcapply)
 
 source("/shares/CIBIO-Storage/BCGLAB/mimesis/scna/scna_cfDNA/betaComputation/betaFunctions.R")
 
@@ -414,6 +415,111 @@ computeSampleWithAfSeg <- function(path, bands, germ.distr, which.snps = c(), mi
   return(list(deck, snps))
 }
 
+computeEvidenceWithAfSeg <- function(path, bands, germ.distr, which.snps = c(), min.af = 0.1, max.af = 0.9, min.cov = 10, center.af = TRUE) {
+  
+  # sample name
+  n.split = stringr::str_split(path, "/")[[1]]
+  n = n.split[length(n.split)-1]
+  
+  # Load and process pileup data
+  snps <- fread(path)
+  mycols <- c("chr", "pos", "rsid", "af", "cov")
+  snps <- snps[which(af > min.af & af < max.af & cov >= min.cov), ..mycols]
+  
+  # filter for snps in which.snps
+  if (length(which.snps) > 0) {
+    snps <- snps[which(rsid %in% which.snps)]
+  }
+  
+  # Filter chromosomes 1-22 e add "chr" prefix to the column if not present
+  if (!grepl("chr", snps$chr[1])) {
+    snps <- snps[, chr := paste0("chr", chr)][which(chr %in% paste0("chr", 1:22))]
+  } else {
+    snps <- snps[which(chr %in% paste0("chr", 1:22))]
+  }
+  
+  # Add arm column
+  snps[, arm := "p"]
+  for (idx in seq(from = 2, to = nrow(bands), by = 2)) {
+    if (bands[idx, arm] != "q") {
+      stop("Bands do not have paired p-q arms!")
+    }
+    band.chr <- bands[idx, chr]
+    band.start <- bands[idx, start]
+    band.end <- bands[idx, end]
+    snps[chr == band.chr & pos >= band.start & pos <= band.end, "arm"] <- "q"
+  }
+  
+  if (center.af) {
+    # adjust af with respect to the main peak and center to 0.5 (?)
+    d <- density(snps$af, bw = "SJ")
+    snps$af <- snps$af + (0.5 - (d$x[which(d$y == max(d$y))]))
+  }
+  
+  # mirror af 
+  snps[, af.m := ifelse(af < 0.5, 1-af, af)]
+  
+  # Generate mirrored af segmentation
+  chrom <- sort(c(paste0("chr", 1:22, ".p"), paste0("chr", 1:22, ".q")))
+  af.seg = lapply(chrom, function(p){
+    chr.t = strsplit(p, split = ".", fixed = T)[[1]][1]
+    arm.t = strsplit(p, split = ".", fixed = T)[[1]][2]
+    
+    snps.f = snps[chr == chr.t & arm == arm.t]
+    snps.f = snps.f[!is.na(af.m)]
+    
+    min.width = 2
+    if (nrow(snps.f) > min.width){
+      
+      CNA.object <- CNA(snps.f$af.m,
+                        snps.f$chr,
+                        snps.f$pos,
+                        data.type="logratio",sampleid=n)
+      smoothed.CNA.object <- smooth.CNA(CNA.object)
+      segment.smoothed.CNA.object <- segment(smoothed.CNA.object, min.width=min.width,
+                                             undo.splits="sdundo", #undoes splits that are not at least this many SDs apart.
+                                             undo.SD=1,verbose=0)
+      af.seg.arm = segment.smoothed.CNA.object$output
+      af.seg.arm$arm = arm.t
+      
+    } else {
+      af.seg.arm = data.table(ID=n, chrom=chr.t, loc.start=NA, loc.end=NA, num.mark=NA, seg.mean=NA, arm=arm.t)
+    }
+    return(af.seg.arm)
+  })
+  af.seg = rbindlist(af.seg)
+  
+  
+  
+  # Compute Evidence
+  
+  deck = lapply(1:nrow(af.seg), function(row) {
+    ID = n
+    chrom = af.seg$chrom[row]
+    loc.start = af.seg$loc.start[row]
+    loc.end = af.seg$loc.end[row]
+    
+    snps.f = snps[chr == chrom & pos >= loc.start & pos <= loc.end, .(rsid, af, cov)]
+    
+    beta.t = computeEvidence(snps.f$cov, snps.f$af, snps.f$rsid, germ.distr, times = 5, min.snps = 2)
+    beta.t = as.data.table(t(beta.t))
+    beta.t$ID = ID
+    beta.t$chrom = chrom
+    beta.t$loc.start = loc.start
+    beta.t$loc.end = loc.end
+    return(beta.t)
+  })
+  
+  deck <- rbindlist(deck)
+  
+  deck <- merge.data.table(af.seg, deck, by=c("ID", "chrom", "loc.start", "loc.end"))
+  deck = deck[, !"n.snps"]
+  setnames(snps, c("chr"), c("chrom"))
+  snps$ID = n
+  
+  return(list(deck, snps))
+}
+
 computeSampleWithAfSeg_Focal <- function(path, germ.distr, target.panel.path, bands, which.genes = c(), min.af = 0.2, max.af = 0.8, min.cov = 10, center.af = TRUE) {
   
   # sample name
@@ -582,5 +688,271 @@ runWideFocal = function(samples, germ.distr, target.panel.path, bandpath, min.af
   return(list(seg.beta, wide.snps))
 }
 
+runEvidence = function(samples, germ.distr, target.panel.path, bandpath, min.af = 0.1, max.af = 0.9, min.cov=10, center.af=TRUE, verbose=1, njobs=24){
+  
+  # Loading & processing Bands
+  # cat(green("** Processing bands"), "\n")
+  bands <- loadAndProcessBands(bandpath)
+  
+  # filtering target, panel for wide snps
+  # cat(green("** Filtering panel"), "\n")
+  target.panel = fread(target.panel.path)
+  rsid = sapply(strsplit(target.panel$V4, ";"), "[[", 1)
+  rsid = rsid[startsWith(rsid, "rs")]
+  
+  # process samples
+  if (verbose >0){
+    cat(crayon::green("* WideFocal Beta Calculation\n"))
+  }
+  ll <- pbmclapply(samples, function(s) {
+    cat(s, "\n")
+    s <- computeEvidenceWithAfSeg(s, bands, germ.distr, which.snps = rsid, min.af = min.af, max.af = max.af, min.cov = min.cov, center.af = center.af)
+    return(s)
+  }, mc.cores = njobs, ignore.interactive = T)
+  
+  
+  # binding seg.beta
+  if (length(ll$value) > 0){
+    seg.beta = rbindlist(lapply(ll$value, "[[", 1))
+    wide.snps = rbindlist(lapply(ll$value, "[[", 2))
+    
+  } else {
+    seg.beta = rbindlist(lapply(ll, "[[", 1))
+    wide.snps = rbindlist(lapply(ll, "[[", 2))
+    
+  }
+  
+  
+  return(list(seg.beta, wide.snps))
+}
+
+joinChromSegmentations = function(data1, data2){
+  
+  data1.seglist = lapply(1:nrow(data1), function(s){
+    l.start = data1$loc.start[s]
+    l.end = data1$loc.end[s]
+    af.segs = data2[loc.start <= l.end & loc.end >= l.start]
+    colnames(af.segs) = paste0('af.',names(af.segs))
+    
+    
+    segment.start = l.start
+    segment.end = l.end
+    
+    ll.s = list()
+    if (nrow(af.segs) > 0){
+      for (t in 1:nrow(af.segs)){
+        
+        if (af.segs$af.loc.end[t] <= l.end && t < nrow(af.segs)){
+          segment.end = af.segs$af.loc.end[t]
+          ll.s[[t]] = cbind("loc.start"=segment.start, "loc.end"=segment.end, data1[s, !c(3,4)], af.segs[t, 5:ncol(af.segs)])
+          segment.start = af.segs$af.loc.end[t] + 1
+        } else if (af.segs$af.loc.end[t] <= l.end) {
+          segment.end = l.end
+          ll.s[[t]] = cbind("loc.start"=segment.start, "loc.end"=segment.end, data1[s, !c(3,4)], af.segs[t, 5:ncol(af.segs)])
+        } else {
+          segment.end = l.end
+          ll.s[[t]] = cbind("loc.start"=segment.start, "loc.end"=segment.end, data1[s, !c(3,4)], af.segs[t, 5:ncol(af.segs)])
+        }
+      }
+      
+      return(rbindlist(ll.s))
+    }
+    
+    
+    
+    return(ll.s)
+  })
+  
+  
+  return(rbindlist(data1.seglist))
+}
+
+CombineSegV2 = function(seg, af.seg){
+  
+  final.seg = lapply(unique(seg$ID), function(n){
+    af.seg.n = af.seg[ID == n]
+    seg.n = seg[ID == n & num.mark > 2]
+    
+    seg.chrom = lapply(unique(seg.n$chrom), function(chr){
+      
+      joinChromSegmentations(seg.n[chrom == chr], af.seg.n[chrom == chr])
+      
+    })
+    
+    seg.chrom = rbindlist(seg.chrom)
+    return(seg.chrom)
+  })
+  
+  final.seg = rbindlist(final.seg)
+  return(final.seg)
+}
+
+runBeta = function(comb.seg, snps, evidence.thr=0.5, njobs=1, g.betas=seq(1, 0.01, -0.05), verbose=1){
+  
+  comb.seg.f = comb.seg[af.evidence > evidence.thr & cna_thr != "NEUTRAL"]
+  
+  if (nrow(comb.seg.f) > 0 ){
+    if (verbose > 0){
+      cat(crayon::green("* Running Beta Calculation\n"))
+    }
+    deck = pbmclapply(1:nrow(comb.seg.f), function(row) {
+      
+      ID.r = comb.seg.f$ID[row]
+      chr = comb.seg.f$chrom[row]
+      loc.start = comb.seg.f$loc.start[row]
+      loc.end = comb.seg.f$loc.end[row]
+      cna = comb.seg.f$cna_thr[row]
+      
+      snps.f = snps[ID == ID.r & chrom == chr & pos >= loc.start & pos <= loc.end, .(rsid, af, cov)]
+      
+      if (cna == "LOSS"){
+        
+        beta.t = computeBeta(snps.f$cov, snps.f$af, snps.f$rsid, germ.distr, times = 5, min.snps = 2)
+        
+        return(cbind(comb.seg.f[row], t(beta.t[c(1, 2, 3, 5)])))
+        
+      } else if (cna == "GAIN"){
+        
+        beta.t = computeBetaGAIN(snps.f$cov, snps.f$af, snps.f$rsid, germ.distr, times = 5, min.snps = 10, betas=g.betas, cn=c(2,1))
+  
+        return(cbind(comb.seg.f[row], t(beta.t[c(1, 2, 3, 5)])))
+      
+      }
+    }, mc.cores=njobs, ignore.interactive=T)
+    
+      return(rbindlist(deck))
+    
+  } else {
+    deck = copy(comb.seg)
+    deck$beta = NA
+    deck$error.min = NA
+    deck$error.max = NA
+    deck$evidence = NA
+    return(deck)
+  }
+}
+
+runBetaV2 = function(comb.seg, snps, evidence.thr=0.5, njobs=1, g.betas=seq(1, 0.01, -0.05)){
+  
+  comb.seg.f = comb.seg[af.evidence > evidence.thr]
+  
+  cat(crayon::green("* Running Beta Calculation\n"))
+  deck = pbmclapply(1:nrow(comb.seg.f), function(row) {
+    
+    ID.r = comb.seg.f$ID[row]
+    chr = comb.seg.f$chrom[row]
+    loc.start = comb.seg.f$loc.start[row]
+    loc.end = comb.seg.f$loc.end[row]
+    cna = comb.seg.f$cna_thr[row]
+    seg.mean = comb.seg.f$seg.mean[row]
+    
+    snps.f = snps[ID == ID.r & chrom == chr & pos >= loc.start & pos <= loc.end, .(rsid, af, cov)]
+    
+    if (cna == "LOSS" || cna == "NEUTRAL"){
+      
+      beta.t = computeBeta(snps.f$cov, snps.f$af, snps.f$rsid, germ.distr, times = 5, min.snps = 2)
+      
+      return(cbind(comb.seg.f[row], t(beta.t[c(1, 2, 3, 5)])))
+      
+    } else if (cna == "GAIN"){
+      
+      if (seg.mean > 1) {
+        
+        beta.t = computeBetaGAIN(snps.f$cov, snps.f$af, snps.f$rsid, germ.distr, times = 5, min.snps = 10, betas=g.betas, cn=c(20,1))
+        
+      } else {
+
+        beta.t = computeBetaGAIN(snps.f$cov, snps.f$af, snps.f$rsid, germ.distr, times = 5, min.snps = 10, betas=g.betas, cn=c(10,1))
+
+      }
+      
+      return(cbind(comb.seg.f[row], t(beta.t[c(1, 2, 3, 5)])))
+      
+    } 
+    
+  }, mc.cores=njobs, ignore.interactive=T)
+  
+  return(rbindlist(deck))
+}
 
 
+TCestimation = function(seg.comb, evidence.thr=0){
+  tc.est = data.table(
+    "ID" = c(),
+    "tc.peaks.weigthed.mean" = c()
+  ) 
+  
+  for (n in unique(seg.comb$ID)){
+    nround=6
+    seg.comb.n = seg.comb[ID == n & evidence > evidence.thr]
+    seg.comb.n.del = seg.comb.n[cna_thr == "LOSS"]
+    b = na.omit(seg.comb.n.del$beta)
+    b.gain = na.omit(seg.comb.n$beta)
+
+    # use density
+    if (length(b) >= 2){
+      
+      
+      d = density(b)
+      d = data.table("beta"=d$x, "density"=d$y)
+      peaks.beta = d$beta[splus2R::peaks(d$density) == TRUE]
+      peaks.density = d$density[splus2R::peaks(d$density) == TRUE]
+      
+      
+      peaks.weigth.mean = weighted.mean(peaks.beta, peaks.density)
+      
+      tc.est= rbind(tc.est, data.table(
+        "ID" = n,
+        "tc.peaks.weigthed.mean" = round(1-(peaks.weigth.mean/(2-peaks.weigth.mean)),nround)
+      ))
+    } else if (length(b) == 1){
+      
+      beta = mean(b)
+      tc.est= rbind(tc.est, data.table(
+        "ID" = n,
+        "tc.peaks.weigthed.mean" = round(1-(beta/(2-beta)), nround)
+      ))
+    } else if (length(b.gain) >= 2){
+      d = density(b.gain)
+      d = data.table("beta"=d$x, "density"=d$y)
+      peaks.beta = d$beta[splus2R::peaks(d$density) == TRUE]
+      peaks.density = d$density[splus2R::peaks(d$density) == TRUE]
+      
+      
+      peaks.weigth.mean = weighted.mean(peaks.beta, peaks.density)
+      
+      tc.est= rbind(tc.est, data.table(
+        "ID" = n,
+        "tc.peaks.weigthed.mean" = round(1-(peaks.weigth.mean/(2-peaks.weigth.mean)),nround)
+      ))
+      
+    } else if (length(b.gain) == 1 ){
+      beta = mean(b.gain)
+      tc.est= rbind(tc.est, data.table(
+        "ID" = n,
+        "tc.peaks.weigthed.mean" = round(1-(beta/(2-beta)), nround)
+      ))
+    } else {
+      tc.est = rbind(tc.est, data.table(
+        "ID" = n,
+        "tc.peaks.weigthed.mean" = NA
+      ))
+    }
+  }
+  
+  return(tc.est)
+  
+}
+
+
+isTumor = function(seg.e, thr=0.5) {
+  
+  sapply(unique(seg.e$ID), function(s){
+    
+    if ( length(na.omit(seg.e[ID == s & evidence >= thr, evidence]))  > 0 ) {
+      return(TRUE)
+    } else {
+      return(FALSE)
+    }
+  })
+}

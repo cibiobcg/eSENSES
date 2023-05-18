@@ -78,7 +78,7 @@ computeGermlineDistributions <- function(germline, label = "germline", exclude.s
   return(list("af.stats" = rsid.af.stats, "af.sd" = af.sd.cov, "cov.inter" = cov.inter))
 }
 
-computeBeta <- function(cov, afs, rsid, germ.distr, p.thr = 0.01, paired = FALSE, times = 3, betas=seq(0.99, 0.01, -0.01), min.snps = 10, verbose = 0) { 
+computeBeta <- function(cov, afs, rsid, germ.distr, p.thr = 0.01, paired = FALSE, times = 3, betas=seq(1, 0.01, -0.01), min.snps = 10, verbose = 0) { 
   # Computes Beta of a given sample's SNPs pileup based on previously built reference distribution data
   ### Input
   # 1) cov = cov vector of sample's SNPs
@@ -125,7 +125,50 @@ computeBeta <- function(cov, afs, rsid, germ.distr, p.thr = 0.01, paired = FALSE
       })
       
       # sum up beta.distr calculation
-      beta.estimations <- lapply(beta.distr, function(x) unlist(betaEstimate(snps.distr = afs, beta.distr = x, p.thr = p.thr, paired = paired)))
+      beta.estimations <- lapply(beta.distr, function(x) unlist(betaEstimate(snps.distr = afs, beta.distr = x, p.thr = p.thr, paired = paired, betas = betas)))
+      beta.estimations <- matrix(unlist(beta.estimations), ncol = length(beta.estimations[[1]]), byrow = T)
+      beta.estimations <- colMeans(beta.estimations)
+      l.beta <- c(beta.estimations, mean(cov))
+    } else {
+      l.beta <- c(beta.estimations.1, mean(cov))
+    }
+    
+  } else {
+    l.beta <- c(NA, NA, NA, NA, FALSE, mean(cov))
+  }
+  names(l.beta) <- c("beta", "error.min", "error.max", "n.snps", "evidence", "cov.mean")
+  return(l.beta)
+}
+
+computeBetaGAIN <- function(cov, afs, rsid, germ.distr, p.thr = 0.01, paired = FALSE, times = 3, betas=seq(1, 0.01, -0.01), min.snps = 10,  cn=c(2,1), verbose = 0) { 
+
+  afs[which(afs < 0.5)] <- 1 - afs[which(afs < 0.5)]
+  cov <- cov[which(rsid %in% germ.distr[[1]]$rsid)]
+  afs <- afs[which(rsid %in% germ.distr[[1]]$rsid)]
+  rsid <- rsid[which(rsid %in% germ.distr[[1]]$rsid)]
+  
+  
+  if (length(afs) >= min.snps) {
+    # Check for evidence
+    beta.distr.1 <- lapply(1:times, function(kk) {
+      beta.distr.tmp <- generateBetaDistrGAIN(germ.distr, rsid, cov, betas = 1)
+      return(beta.distr.tmp)
+    })
+    beta.estimations.1 <- lapply(beta.distr.1, function(x) unlist(betaEstimate(snps.distr = afs, beta.distr = x, p.thr = p.thr, paired = paired)))
+    beta.estimations.1 <- matrix(unlist(beta.estimations.1), ncol = length(beta.estimations.1[[1]]), byrow = T)
+    beta.estimations.1 <- colMeans(beta.estimations.1)
+    
+    # if evidence > 0 simulate other distributions
+    if (beta.estimations.1[5] > 0 & length(betas) > 0){
+      # Calculate beta.distr n times
+      beta.distr <- lapply(1:times, function(kk) {
+        beta.distr.tmp <- generateBetaDistrGAIN(germ.distr, rsid, cov, betas = betas, cn=cn)
+        beta.distr.tmp <- monotoneBetaDistr(beta.distr.tmp)
+        return(beta.distr.tmp)
+      })
+      
+      # sum up beta.distr calculation
+      beta.estimations <- lapply(beta.distr, function(x) unlist(betaEstimate(snps.distr = afs, beta.distr = x, p.thr = p.thr, paired = paired, betas = betas)))
       beta.estimations <- matrix(unlist(beta.estimations), ncol = length(beta.estimations[[1]]), byrow = T)
       beta.estimations <- colMeans(beta.estimations)
       l.beta <- c(beta.estimations, mean(cov))
@@ -177,6 +220,51 @@ generateBetaDistr <- function(germ.distr, snps, covs, betas=seq(1, 0.01, -0.01))
   return(beta.distr)
 }
 
+generateBetaDistrGAIN = function(germ.distr, snps, covs, cn=c(2,1), betas=seq(1, 0.01, -0.01)){
+  t.cov <- rep(covs, each = rep)
+  afs <- as.numeric(sapply(rep(snps, each = rep), function(x) germ.distr[[1]]$af.mean[which(germ.distr[[1]]$rsid == x)]))
+  
+  beta.distr <- lapply(betas, function(beta) {
+    cov = copy(t.cov)
+    reads.adm = ceiling(cov*beta)
+    reads.t = (cov - reads.adm)
+    reads.t.single = round(reads.t/ sum(cn) )
+    reads.t.double = reads.t-reads.t.single
+    
+    # Generating af estimates for specific adm
+    cov[which(cov > max(germ.distr[[3]]))] <- max(germ.distr[[3]])
+    af.noise <- sapply(cov, function(x) germ.distr[[2]][max(which(germ.distr[[3]] <= x))])
+    af.est <- sapply(1:length(afs), function(x) rnorm(1, afs[x], af.noise[x]))
+    af.est[which(af.est < 0.2)] <- 0.2
+    af.est[which(af.est > 0.8)] <- 0.8
+    
+    
+    # reads adm
+    reads.adm.ref = round(reads.adm*af.est)
+    reads.adm.alt = reads.adm - reads.adm.ref
+    
+    # reads tumor
+    if (beta < 1) {
+      number <- sample(1:length(reads.adm.ref), 1)
+      dir <- sample(1:length(reads.adm.ref), number)
+      
+      reads.adm.ref[dir] <- reads.adm.ref[dir] + reads.t.double[dir]
+      reads.adm.alt[dir] <- reads.adm.alt[dir] + reads.t.single[dir]
+      
+      if (length(dir) < length(reads.adm.ref)) {
+        reads.adm.ref[-dir] <- reads.adm.ref[-dir] + reads.t.single[-dir]
+        reads.adm.alt[-dir] <- reads.adm.alt[-dir] + reads.t.double[-dir]
+      }
+    }
+    
+    af.mirror <- reads.adm.alt / (reads.adm.ref + reads.adm.alt)
+    af.mirror[which(af.mirror < 0.5)] <- 1 - af.mirror[which(af.mirror < 0.5)]
+    
+    return(af.mirror)
+  })
+  return(beta.distr)
+}
+
 monotoneBetaDistr <- function(beta.distr) {
   if (length(beta.distr) == 1) {
     print("ERROR")
@@ -201,8 +289,7 @@ monotoneBetaDistr <- function(beta.distr) {
   return(beta.distr)
 }
 
-betaEstimate <- function(snps.distr, beta.distr, p.thr = 0.01, paired = FALSE) {
-  betas <- seq(1, 0.01, -0.01)
+betaEstimate <- function(snps.distr, beta.distr, p.thr = 0.01, paired = FALSE, betas=seq(1, 0.01, -0.01)) {
   evidence <- TRUE
   if (wilcox.test(snps.distr, beta.distr[[1]], alternative = "greater", paired = paired)$p.value > p.thr) {
     evidence <- FALSE
@@ -233,3 +320,26 @@ betaEstimate <- function(snps.distr, beta.distr, p.thr = 0.01, paired = FALSE) {
   return(list(c(beta, betas[greater], betas[less]), length(snps.distr), evidence))
 }
 
+computeEvidence = function(cov, afs, rsid, germ.distr, p.thr = 0.01, paired = FALSE, times = 10, betas=1, min.snps = 10, verbose = 0) { 
+  
+  afs[which(afs < 0.5)] <- 1 - afs[which(afs < 0.5)]
+  cov <- cov[which(rsid %in% germ.distr[[1]]$rsid)]
+  afs <- afs[which(rsid %in% germ.distr[[1]]$rsid)]
+  rsid <- rsid[which(rsid %in% germ.distr[[1]]$rsid)]
+  
+  
+  if (length(na.omit(afs)) >= min.snps) {
+    # Check for evidence
+    beta.distr.1 <- lapply(1:times, function(kk) {
+      beta.distr.tmp <- generateBetaDistr(germ.distr, rsid, cov, betas = 1)
+      return(beta.distr.tmp)
+    })
+    beta.estimations.1 <- lapply(beta.distr.1, function(x) unlist(betaEstimate(snps.distr = afs, beta.distr = x, p.thr = p.thr, paired = paired)))
+    beta.estimations.1 <- matrix(unlist(beta.estimations.1), ncol = length(beta.estimations.1[[1]]), byrow = T)
+    beta.estimations.1 <- colMeans(beta.estimations.1)
+    
+    return(c("evidence"=beta.estimations.1[5], "n.snps" = beta.estimations.1[4], "cov.mean"=mean(cov)))
+    }
+
+  return(c("evidence"=NA, "n.snps" = length(na.omit(afs)), "cov.mean"=mean(cov)))
+}
