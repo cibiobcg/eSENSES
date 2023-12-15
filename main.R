@@ -1,4 +1,3 @@
-setwd("./")
 source("src/compData.R")
 cfg = config::get()
 
@@ -13,10 +12,10 @@ main = function(cfg){
         if (cfg$system$njobs < njobs){
                 njobs = cfg$system$njobs
         }
-        
+       	 
         ### BUILDING REFERENCE
         ref_dir = cfg$paths$ref
-        if (!dir.exists(ref_dir)) dir.create(file.path(ref_dir), showWarnings = FALSE)
+        if (!dir.exists(ref_dir)) dir.create(file.path(ref_dir), showWarnings = FALSE, recursive = TRUE)
         
         if (isTRUE(cfg$ref$overwrite) | !file.exists(file.path(ref_dir, "Reference.rds"))){
                 
@@ -46,11 +45,12 @@ main = function(cfg){
         res.seg = vector(mode='list', length=length(samples))
         res.tc = vector(mode='list', length=length(samples))
         
-        pb = txtProgressBar(min = 0, max = length(samples), initial = 0, style=3) 
+        #pb = txtProgressBar(min = 0, max = length(samples), initial = 0, style=3) 
         
         for (i in 1:length(samples)){
                 sample = samples[i]
-                if (nchar(sample) == 0) stop(paste("ERROR invalid input path! sample index", i))
+                
+		if (nchar(sample) == 0) stop(paste("ERROR invalid input path! sample index", i))
                 
                 # load sample
                 sample.pileup = LoadPileUp(sample.path = sample,
@@ -59,7 +59,8 @@ main = function(cfg){
                                     max.af = cfg$sample$maxaf,
                                     min.cov = cfg$sample$mincov,
                                     center.af = cfg$ref$centeraf)
-                # run segmentation
+                
+		# run segmentation
                 sample.seg = SampleSeg(sample.pileup = sample.pileup,
                                        ref = ref,
                                        min.snps = cfg$sample$minsnps,
@@ -73,16 +74,16 @@ main = function(cfg){
                 res.seg[[i]] = sample.seg
                 res.tc[[i]] = sample.tc
                 
-                setTxtProgressBar(pb,i)
+        #        setTxtProgressBar(pb,i)
         }
-        close(pb)
+        #close(pb)
         cat("-> Segmented", length(samples), "samples\n")
         
         res.seg = rbindlist(res.seg)
         res.tc = rbindlist(res.tc)
         
         out_dir = cfg$paths$out
-        if (!dir.exists(out_dir)) dir.create(file.path(out_dir), showWarnings = FALSE)
+        if (!dir.exists(out_dir)) dir.create(file.path(out_dir), showWarnings = FALSE, recursive = TRUE)
         
         fwrite(res.seg,
                file.path(out_dir, "seg_table.tsv"),

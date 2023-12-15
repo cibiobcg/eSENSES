@@ -1,16 +1,16 @@
 default:
   files:
-    bands: "path/to/bands.tsv"
-    bed: "path/to/bed.bed"
-    controls: "./data/controls.txt"
-    samples: "./data/samples.txt"
+    bands: "/shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/ucsc_cytobands_GRCh38.tsv"
+    bed: "/shares/CIBIO-Storage/BCGLAB/mimesis/panel_design/panel/mimesis_panel/outs_hyperdesign/SelectionResult/mim_v4_capture_targets.bed"
+    controls: "/shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/controls.txt"
+    samples: "/shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/cohort_0.txt"
 
   paths:
     ref: "./data/reference"
-    out: "./data/processed"
+    out: "/shares/CIBIO-Storage/BCG/scratch/mimesis/scna/analysis/cohort_0/run"
 
   ref:
-    overwrite: FALSE
+    overwrite: TRUE
     minaf: 0.2
     maxaf: 0.8
     mincov: 10
@@ -27,5 +27,5 @@ default:
     evidencethr: 0.8
     
   system:
-    njobs: 6
+    njobs: 42
     

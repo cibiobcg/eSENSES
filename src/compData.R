@@ -272,7 +272,10 @@ SampleSeg = function(sample.pileup, ref, min.snps, z.thr, evidence.thr, njobs){
         if (length(rc.arm.ll) == 0) stop(paste("ERRROR: split processed input" ,sample.name, " empty"))
         
         ll.seg = mclapply(chroms[chroms %in% names(rc.arm.ll)], FUN=function(chrom.arm){
-                # RC segmentation
+                
+        	if (nrow(rc.arm.ll[[chrom.arm]]) == 0) stop(paste("ERRROR: split processed input" ,sample.name, chrom.arm, " empty"))
+		
+		# RC segmentation
                 arm.seg = ArmRCSegmentation(sample.name,
                                         chrom.arm,
                                         rc.arm.ll[[chrom.arm]])
@@ -291,10 +294,10 @@ SampleSeg = function(sample.pileup, ref, min.snps, z.thr, evidence.thr, njobs){
                                           sample.snps = sample.pileup$snps,
                                           snps.ref = ref[c("af.stats", "af.sd", "cov.inter")],
                                           min.snps = min.snps)
-                # ricordati alla fine di usare zthr
 
                 return(arm.seg)
         }, mc.cores=njobs)
+
         
         sample.seg = rbindlist(ll.seg)
         
