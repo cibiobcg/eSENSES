@@ -1,0 +1,31 @@
+default:
+  files:
+    bands: "path/to/bands.tsv"
+    bed: "path/to/bed.bed"
+    controls: "./data/controls.txt"
+    samples: "./data/samples.txt"
+
+  paths:
+    ref: "./data/reference"
+    out: "./data/processed"
+
+  ref:
+    overwrite: FALSE
+    minaf: 0.2
+    maxaf: 0.8
+    mincov: 10
+    centeraf: TRUE
+    cov.bin: 0.1
+    maskratio: 0.5
+    
+  sample:
+    minaf: 0.1
+    maxaf: 0.9
+    mincov: 10
+    minsnps: 10
+    zthr: 2.58
+    evidencethr: 0.8
+    
+  system:
+    njobs: 6
+    
