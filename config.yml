@@ -1,4 +1,5 @@
 default:
+run1:
   files:
     bands: "/shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/ucsc_cytobands_GRCh38.tsv"
     bed: "/shares/CIBIO-Storage/BCGLAB/mimesis/panel_design/panel/mimesis_panel/outs_hyperdesign/SelectionResult/mim_v4_capture_targets.bed"
@@ -7,7 +8,7 @@ default:
 
   paths:
     ref: "./data/reference"
-    out: "/shares/CIBIO-Storage/BCG/scratch/mimesis/scna/analysis/cohort_0/run"
+    out: "/shares/CIBIO-Storage/BCG/scratch/mimesis/scna/analysis/cohort_0/run_e08z258"
 
   ref:
     overwrite: TRUE
@@ -27,5 +28,5 @@ default:
     evidencethr: 0.8
     
   system:
-    njobs: 4
+    njobs: 36
     

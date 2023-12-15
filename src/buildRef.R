@@ -79,7 +79,8 @@ BuildReference = function(sample.paths,
                                                 exclude.snps=c(),
                                                 cov.bin = cov.bin)
         )
-        cat("\n")
+        cat("-> Reference ready\n")
+	cat("\n")
         return(ref)
 }
 

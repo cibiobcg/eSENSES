@@ -1,6 +1,18 @@
 source("src/compData.R")
 cfg = config::get()
 
+## format how to print time
+hms_span <- function(start, end) {
+  dsec <- as.numeric(difftime(end, start, unit = "secs"))
+  hours <- floor(dsec / 3600)
+  minutes <- floor((dsec - 3600 * hours) / 60)
+  seconds <- dsec - 3600*hours - 60*minutes
+  paste0(
+    sapply(c(hours, minutes, seconds), function(x) {
+      formatC(x, width = 2, format = "d", flag = "0")
+    }), collapse = ":")
+}
+
 
 main = function(cfg){
         controls = fread(cfg$files$controls, header = FALSE)$V1
@@ -42,6 +54,7 @@ main = function(cfg){
         
         ### RUNNING SEG      
         cat("---------- SEGMENTATION ----------\n")
+	t0 = Sys.time()
         res.seg = vector(mode='list', length=length(samples))
         res.tc = vector(mode='list', length=length(samples))
         
@@ -77,7 +90,8 @@ main = function(cfg){
                 setTxtProgressBar(pb,i)
         }
         close(pb)
-        cat("-> Segmented", length(samples), "samples\n")
+	t1 = Sys.time()
+        cat("-> Segmented", length(samples), "samples | required time", hms_span(t0, t1), "\n")
         
         res.seg = rbindlist(res.seg)
         res.tc = rbindlist(res.tc)
@@ -95,8 +109,10 @@ main = function(cfg){
                col.names = TRUE)
         
         yaml::write_yaml(list(default=cfg), file.path(out_dir, "config.yml"))
-        
+       cat("-> Results saved\n") 
 }
 
 
+source("src/compData.R")
+cfg = config::get()
 main(cfg)
