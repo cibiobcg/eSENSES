@@ -27,5 +27,5 @@ default:
     evidencethr: 0.8
     
   system:
-    njobs: 42
+    njobs: 4
     

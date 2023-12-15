@@ -232,6 +232,8 @@ FocalSegSmoothing = function(arm.seg, focal.bed){
         if (nrow(arm.seg) > 1){
                 gene.row = focal.bed[chr == unique(arm.seg$chrom) & arm == unique(arm.seg$arm), .(gene, from, to)]
                 focal.seg.bool = arm.seg$loc.start >= gene.row$from & arm.seg$loc.end <= gene.row$to
+                focal.seg.bool[is.na(focal.seg.bool)] = FALSE
+                
                 if (sum(focal.seg.bool)>1){
                         focal.seg = arm.seg[focal.seg.bool, .(l2r.loc.start=min(l2r.loc.start), 
                                                               l2r.loc.end=max(l2r.loc.end),

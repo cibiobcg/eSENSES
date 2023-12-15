@@ -45,7 +45,7 @@ main = function(cfg){
         res.seg = vector(mode='list', length=length(samples))
         res.tc = vector(mode='list', length=length(samples))
         
-        #pb = txtProgressBar(min = 0, max = length(samples), initial = 0, style=3) 
+        pb = txtProgressBar(min = 0, max = length(samples), initial = 0, style=3) 
         
         for (i in 1:length(samples)){
                 sample = samples[i]
@@ -74,9 +74,9 @@ main = function(cfg){
                 res.seg[[i]] = sample.seg
                 res.tc[[i]] = sample.tc
                 
-        #        setTxtProgressBar(pb,i)
+                setTxtProgressBar(pb,i)
         }
-        #close(pb)
+        close(pb)
         cat("-> Segmented", length(samples), "samples\n")
         
         res.seg = rbindlist(res.seg)
