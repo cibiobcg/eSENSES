@@ -1,6 +1,6 @@
 source("src/buildRef.R")
 library(DNAcopy)
-library(dbscan)
+library(dbscan, warn.conflicts = FALSE)
 
 computeTC = function(beta){
         nround=6

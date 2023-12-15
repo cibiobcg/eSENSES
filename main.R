@@ -93,6 +93,8 @@ main = function(cfg){
                sep="\t",
                col.names = TRUE)
         
+        yaml::write_yaml(list(default=cfg), file.path(out_dir, "config.yml"))
+        
 }
 
 
