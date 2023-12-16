@@ -112,7 +112,7 @@ default:
       maxaf: 0.8
       mincov: 10
       centeraf: yes
-      cov.bin: 0.1
+      covbin: 0.1
       maskratio: 0.5
     sample:
       minaf: 0.1
@@ -140,13 +140,24 @@ Run parameters include:
 
 * ```files``` containing the path to input files, in particular the ```bed``` file, ```bands``` files and a list (one sample path per row) of the samples pileups (generated with [PacBAM](https://bitbucket.org/CibioBCG/pacbam/src/master/)) paths of ```controls.txt``` and ```samples.txt``` to analyze. Although two pileup files per sample are needed (```.rc```, ```.snps``` ) only one path must be inserted in the input txt files (is not relevant which one).
 
-* ```paths```
+* ```paths``` specifies the directories of the Reference (to read or to write) and the output directory.
 
-* ```ref```
+* ```ref``` contains the parameters used in the building of the reference, in particular:
 
-* ```sample```
+	- ```overwrite``` defines the re-building and writing of the reference, when FALSE if a *Reference.rds* in the ```ref``` paths is present gets loaded.
+	- ```minaf```, ```maxaf``` define the interval of allelic fraction kept when filtering SNPs information.
+	- ```mincov``` filters SNPs information based on coverage.
+	- ```centeraf``` whether to center allelic fraction distribution of sample to 0.5, this parameter defines also whther sample analyzed are centered or not.
+	- ```covbin```
+	- ```maskratio``` defines the minimum percentage of samples having NA values for a specific region of the RC information in order to consider that region. 
 
-* ```system```
+* ```sample``` contains parameters applied to the analyzed samples, the first three have the same function of those in ```ref```, while
+	
+	- ```minsnps``` is the minimum number of snps required in a segment for performing *evidence calculation*.
+	- ```zthr``` is the threshold used for discriminate z.score in copy number calling.
+	- ```evidencethr``` is the threshold of evidence required to confirm a called copy number.  
+
+* ```system``` contains the ```njobs```, number of cores, to use in parallel when analyzing a single sample.
         
 
 
