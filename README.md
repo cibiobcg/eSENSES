@@ -17,7 +17,7 @@ install.package("renv")
 renv::init()
 ```
 
-![]("img/renv_init.png")
+![](img/renv_init.png)
 
 and select *Restore project from the lockfile*, selection 1.
 
