@@ -108,11 +108,17 @@ main = function(cfg){
                sep="\t",
                col.names = TRUE)
         
-        yaml::write_yaml(list(default=cfg), file.path(out_dir, "config.yml"))
+        yaml::write_yaml(list(default=list(run=cfg)), file.path(out_dir, "config.yml"))
        cat("-> Results saved\n") 
 }
 
 
 source("src/compData.R")
 cfg = config::get()
-main(cfg)
+k = 1
+for (cfg.run in cfg){
+	cat("*** RUN ", k, "***\n")
+	main(cfg.run)
+	k = k+1
+	cat("\n")
+}
