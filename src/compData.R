@@ -2,6 +2,29 @@ source("src/buildRef.R")
 library(DNAcopy)
 library(dbscan, warn.conflicts = FALSE)
 
+
+getGenesAndBands = function(sample.seg, sample.rc, bed.ref){
+        
+        sample.genes.bands = sapply(1:nrow(sample.seg), function(k){
+                
+                seg.chrom = sample.seg$chrom[k]
+                seg.start = sample.seg$l2r.loc.start[k]
+                seg.end = sample.seg$l2r.loc.end[k]
+        
+                r.ids = sample.rc[chr == seg.chrom & from >= seg.start & to <= seg.end, region_id]
+                
+                genes = paste(na.omit(unique(bed.ref[region_id %in% r.ids, gene])), collapse = ";")
+                bands = paste(na.omit(unique(bed.ref[region_id %in% r.ids, band])), collapse = ";")
+                
+                if (length(genes) == 0) genes = ""
+                if (length(bands) == 0) bands = ""
+                
+                return(matrix(c(genes, bands), nrow = 2))
+        })
+        
+        return(sample.genes.bands)
+}
+
 computeTC = function(beta){
         nround=6
         tc.est = NA
@@ -322,6 +345,12 @@ SampleSeg = function(sample.pileup, ref, min.snps, z.thr, evidence.thr, njobs){
         # Compute CNA Status
         sample.seg[, cna := getCNAStatus(sample.seg, z.thr, evidence.thr, on = "z.score")]
         sample.seg[, cna.crct := getCNAStatus(sample.seg, z.thr, evidence.thr, on = "z.score.crct")]
+        
+        # Assign Genes and Bands
+        m = getGenesAndBands(sample.seg, sample.pileup$rc, ref$bed)
+        
+        sample.seg[, genes := m[1,]]
+        sample.seg[, bands := m[2,]]
         
         return(sample.seg)
 }

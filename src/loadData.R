@@ -5,11 +5,11 @@ ProcessBands = function(bandpath){
                       sep = "\t", 
                       header = TRUE, 
                       select = c("chrom", "chromStart", "chromEnd", "name"), 
-                      col.names = c("chr", "from", "to", "arm"),
+                      col.names = c("chr", "from", "to", "band"),
                       )
         bands = bands[chr %in% c(paste0("chr", 1:22), c("chrX", "chrY"))]
-        bands[, arm := substr(arm, 1, 1)]
-        bands = bands[, .(from=min(from), to=max(to)), by=c("chr", "arm")]
+        bands[, arm := substr(band, 1, 1)]
+        bands = bands[, .(from=min(from), to=max(to)), by=c("chr", "arm", "band")]
         
         return(bands)
 }
@@ -30,14 +30,19 @@ ProcessBED = function(bedpath, bandpath){
         bed[, region:=ifelse(gene %in% c("ESR1", "TP53", "CCND1", "PTEN", "ERBB2"),
                              "focal",
                              "wide")]
-        arm = rep("q", nrow(bed))
+        arm = rep("", nrow(bed))
+        band = rep("", nrow(bed))
+        
         for (i in 1:nrow(bands)){
-                if (bands$arm[i] == "p") arm[bed$chr == bands$chr[i] & bed$to <= bands$to[i]] = "p"
+                who = bed$chr == bands$chr[i] & bed$from >= bands$from[i] & bed$to <= bands$to[i] 
+                arm[who] = bands$arm[i]
+                band[who] = bands$band[i]
         }
         bed[, arm:=arm]
+        bed[, band:=band]
         bed[, region_id:=1:nrow(bed)]
         
-        return(bed[, c("region_id", "chr", "arm", "from", "to", "rsid", "gene", "region")])
+        return(bed[, c("region_id", "chr", "arm", "band", "from", "to", "rsid", "gene", "region")])
 }
 
 RetrieveBEDSnps = function(bed){
