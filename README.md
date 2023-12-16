@@ -17,7 +17,7 @@ install.package("renv")
 renv::init()
 ```
 
-![](img/renv_init.png)
+<img src="img/renv_init.png" width=240>
 
 and select *Restore project from the lockfile*, selection 1.
 
@@ -32,8 +32,8 @@ renv::activate()
 ## How to
 
 To run a new analysis modify the parameters of ```config.yml``` keeping the same structure.
-The "main" item of the ```config.yml``` *MUST* be ```default``` for the correct running of the script.
-The run parameters (```files```, ```paths```, ```ref```, ```sample```, ```system```) *MUST* be contained in one item (e.g. ```run```) the name is not important. 
+The "main" item of the ```config.yml``` **MUST** be ```default``` for the correct running of the script.
+The run parameters (```files```, ```paths```, ```ref```, ```sample```, ```system```) **MUST** be contained in one item (e.g. ```run```) the name is not important. 
 
 
 ```yaml
@@ -138,15 +138,15 @@ Rscript main.R
 
 Run parameters include:
 
-        * ```files``` containing the path to input files, in particular the ```bed``` file, ```bands``` files and a list (one sample path per row) of the samples pileups (generated with [PacBAM](https://bitbucket.org/CibioBCG/pacbam/src/master/)) paths of ```controls.txt``` and ```samples.txt``` to analyze. Although two pileup files per sample are needed (```.rc```, ```.snps``` ) only one path must be inserted in the input txt files (is not relevant which one).
-        
-        * ```paths```
-        
-        * ```ref```
-        
-        * ```sample```
-        
-        * ```system```
+* ```files``` containing the path to input files, in particular the ```bed``` file, ```bands``` files and a list (one sample path per row) of the samples pileups (generated with [PacBAM](https://bitbucket.org/CibioBCG/pacbam/src/master/)) paths of ```controls.txt``` and ```samples.txt``` to analyze. Although two pileup files per sample are needed (```.rc```, ```.snps``` ) only one path must be inserted in the input txt files (is not relevant which one).
+
+* ```paths```
+
+* ```ref```
+
+* ```sample```
+
+* ```system```
         
 
 
