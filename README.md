@@ -17,7 +17,7 @@ install.package("renv")
 renv::init()
 ```
 
-<img src="img/renv_init.png" width=520>
+<img src="img/renv_init.png" width=640>
 
 and select *Restore project from the lockfile*, selection 1.
 
@@ -66,7 +66,7 @@ default:
       njobs: 48
 ```
 
-Multiple runs can be performed adding more *run* setup in the config with different names
+Multiple runs can be performed adding more *run* setup in the config with <different names>
 
 
 ```yaml
