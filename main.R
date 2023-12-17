@@ -24,6 +24,11 @@ main = function(cfg){
         if (cfg$system$njobs < njobs){
                 njobs = cfg$system$njobs
         }
+
+	
+	out_dir = cfg$paths$out
+        if (!dir.exists(out_dir)) dir.create(file.path(out_dir), showWarnings = FALSE, recursive = TRUE)
+        
        	 
         ### BUILDING REFERENCE
         ref_dir = cfg$paths$ref
@@ -96,7 +101,18 @@ main = function(cfg){
     				sample.seg[, cna.status:=cna.crct]
   			}
 		}
-                
+
+		# Save RC and SNPs
+        	fwrite(sample.pileup$rc,
+               		file.path(out_dir, paste0(sample.pileup$ID, ".rc")),
+               		sep="\t",
+               		col.names = TRUE)
+              	
+		fwrite(sample.pileup$snps,
+               		file.path(out_dir, paste0(sample.pileup$ID, ".snps")),
+               		sep="\t",
+               		col.names = TRUE)
+          
 		# Update result list
                 res.seg[[i]] = sample.seg
                 res.tc[[i]] = sample.tc
@@ -110,9 +126,7 @@ main = function(cfg){
         res.seg = rbindlist(res.seg)
         res.tc = rbindlist(res.tc)
         
-        out_dir = cfg$paths$out
-        if (!dir.exists(out_dir)) dir.create(file.path(out_dir), showWarnings = FALSE, recursive = TRUE)
-        
+       
         fwrite(res.seg,
                file.path(out_dir, "seg_table.tsv"),
                sep="\t",

@@ -328,7 +328,7 @@ SampleSeg = function(sample.pileup, ref, min.snps, z.thr, evidence.thr, njobs){
         
         # Ploidy Correction
         sample.seg[, l2r.seg.mean.crct := computePloidyCorrection(sample.seg, beta.min = 0.97)]
-        
+ 
         # Zscores Calculation
         z = getZscores(sample.seg = sample.seg, 
                        sample.rc = sample.pileup$rc[, .(chr, to, from, region_id)], 
