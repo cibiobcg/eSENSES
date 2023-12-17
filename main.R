@@ -38,7 +38,7 @@ main = function(cfg){
                                      max.af = cfg$ref$maxaf,
                                      min.cov = cfg$ref$mincov,
                                      center.af = cfg$ref$centeraf,
-                                     cov.bin = cfg$ref$cov.bin,
+                                     cov.bin = cfg$ref$covbin,
                                      mask.ratio = cfg$ref$maskratio,
                                      njobs = njobs)
                 
@@ -83,7 +83,21 @@ main = function(cfg){
                 # tc estimation
                 sample.tc = TCestimation(sample.seg = sample.seg,
                                          evidence.thr = cfg$sample$evidencethr)
+
+		# Assign final cna.status
+		sample.seg[, cna.status := cna]
+	
+		if (!is.na(sample.tc$tc.est.crct)){
+    				sample.seg[, cna.status:=cna.crct]
+		}
+
+		if (!is.na(sample.tc$tc.est)){
+			if (sample.tc$tc.est >= 0.15){
+    				sample.seg[, cna.status:=cna.crct]
+  			}
+		}
                 
+		# Update result list
                 res.seg[[i]] = sample.seg
                 res.tc[[i]] = sample.tc
                 

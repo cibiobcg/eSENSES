@@ -7,32 +7,6 @@ default:
       samples: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/cohort_0.txt
     paths:
       ref: ./data/reference
-      out: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/analysis/cohort_0/run_e08_z258
-    ref:
-      overwrite: yes
-      minaf: 0.2
-      maxaf: 0.8
-      mincov: 10.0
-      centeraf: yes
-      cov.bin: 0.1
-      maskratio: 0.5
-    sample:
-      minaf: 0.1
-      maxaf: 0.9
-      mincov: 10.0
-      minsnps: 10.0
-      zthr: 2.58
-      evidencethr: 0.8
-    system:
-      njobs: 48
-  run2:
-    files:
-      bands: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/ucsc_cytobands_GRCh38.tsv
-      bed: /shares/CIBIO-Storage/BCG/scratch/mimesis/panel_design/panel/mimesis_panel/outs_hyperdesign/SelectionResult/mim_v4_capture_targets.bed
-      controls: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/controls.txt
-      samples: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/cohort_0.txt
-    paths:
-      ref: ./data/reference
       out: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/analysis/cohort_0/run_e1_z258
     ref:
       overwrite: yes
@@ -40,7 +14,7 @@ default:
       maxaf: 0.8
       mincov: 10.0
       centeraf: yes
-      cov.bin: 0.1
+      covbin: 0.1
       maskratio: 0.5
     sample:
       minaf: 0.1
@@ -51,22 +25,22 @@ default:
       evidencethr: 1
     system:
       njobs: 48
-  run3:
+  run2:
     files:
       bands: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/ucsc_cytobands_GRCh38.tsv
       bed: /shares/CIBIO-Storage/BCG/scratch/mimesis/panel_design/panel/mimesis_panel/outs_hyperdesign/SelectionResult/mim_v4_capture_targets.bed
       controls: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/controls.txt
-      samples: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/cohort_1.txt
+      samples: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/cohort_0.txt
     paths:
       ref: ./data/reference
-      out: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/analysis/cohort_1/run_e08_z258
+      out: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/analysis/cohort_0/run_e08_z258
     ref:
       overwrite: yes
       minaf: 0.2
       maxaf: 0.8
       mincov: 10.0
       centeraf: yes
-      cov.bin: 0.1
+      covbin: 0.1
       maskratio: 0.5
     sample:
       minaf: 0.1
@@ -77,7 +51,7 @@ default:
       evidencethr: 0.8
     system:
       njobs: 48
-  run4:
+  run3:
     files:
       bands: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/ucsc_cytobands_GRCh38.tsv
       bed: /shares/CIBIO-Storage/BCG/scratch/mimesis/panel_design/panel/mimesis_panel/outs_hyperdesign/SelectionResult/mim_v4_capture_targets.bed
@@ -92,7 +66,7 @@ default:
       maxaf: 0.8
       mincov: 10.0
       centeraf: yes
-      cov.bin: 0.1
+      covbin: 0.1
       maskratio: 0.5
     sample:
       minaf: 0.1
@@ -103,4 +77,29 @@ default:
       evidencethr: 1
     system:
       njobs: 48
-
+  run4:
+    files:
+      bands: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/ucsc_cytobands_GRCh38.tsv
+      bed: /shares/CIBIO-Storage/BCG/scratch/mimesis/panel_design/panel/mimesis_panel/outs_hyperdesign/SelectionResult/mim_v4_capture_targets.bed
+      controls: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/controls.txt
+      samples: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/config/cohort_1.txt
+    paths:
+      ref: ./data/reference
+      out: /shares/CIBIO-Storage/BCG/scratch/mimesis/scna/analysis/cohort_1/run_e08_z258
+    ref:
+      overwrite: yes
+      minaf: 0.2
+      maxaf: 0.8
+      mincov: 10.0
+      centeraf: yes
+      covbin: 0.1
+      maskratio: 0.5
+    sample:
+      minaf: 0.1
+      maxaf: 0.9
+      mincov: 10.0
+      minsnps: 10.0
+      zthr: 2.58
+      evidencethr: 0.8
+    system:
+      njobs: 48
