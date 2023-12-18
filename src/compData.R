@@ -250,7 +250,50 @@ ArmRCSegmentation = function(n, chr.arm, rc.arm){
         return(empty_seg)
 }
 
-FocalSegSmoothing = function(arm.seg, focal.bed){
+
+FocalSegLog2RSmoothing = function(arm.seg, focal.bed){
+        
+        if (nrow(arm.seg) > 1){
+                gene.row = focal.bed[chr == unique(arm.seg$chrom) & arm == unique(arm.seg$arm), .(gene, from, to)]
+                
+                
+                from_intersection = arm.seg$loc.start <= gene.row$from & arm.seg$loc.end >= gene.row$from
+                to_intersection = arm.seg$loc.start <= gene.row$to & arm.seg$loc.end >= gene.row$to
+                in_intersection = arm.seg$loc.start >= gene.row$from & arm.seg$loc.end <= gene.row$to
+                
+                focal.seg.bool = from_intersection | to_intersection | in_intersection
+                
+                if (sum(focal.seg.bool)>0){
+                        which_TRUE = which(focal.seg.bool ==TRUE)
+                        from_as_end = which_TRUE[1]
+                        to_as_start = max(which_TRUE)
+                        
+                        arm.seg[from_as_end, loc.end=gene.row$from-1]
+                        first_l2r = arm.seg$seg.mean[from_as_end]
+                        arm.seg[to_as_start, loc.start=gene.row$to]
+                        last_l2r = arm.seg$seg.mean[to_as_start]
+                
+                        focal.seg = arm.seg[which_TRUE[!which_TRUE %in% c(to_as_start, from_as_end)], .(loc.start=gene.row$from, 
+                                                              loc.end=gene.row$to,
+                                                              num.mark=sum(num.mark),
+                                                              seg.mean=stats::weighted.mean(seg.mean, num.mark),
+                                                              l2r.dist=sum(l2r.dist),
+                                                              loc.start=min(loc.start), 
+                                                              loc.end=max(loc.end),
+                                                              num.mark=sum(num.mark),
+                                                              af.seg.mean=stats::weighted.mean(af.seg.mean, num.mark)
+                        ), by=c("ID", "chrom", "arm")]
+                        setcolorder(focal.seg, colnames(arm.seg))
+                        arm.seg = rbind(arm.seg[!focal.seg.bool], focal.seg)
+                        setorder(arm.seg, cols = "loc.start")
+                }
+        }
+        
+        return(arm.seg)
+}
+
+
+FocalSegAFSmoothing = function(arm.seg, focal.bed){
 
         if (nrow(arm.seg) > 1){
                 gene.row = focal.bed[chr == unique(arm.seg$chrom) & arm == unique(arm.seg$arm), .(gene, from, to)]
@@ -311,7 +354,7 @@ SampleSeg = function(sample.pileup, ref, min.snps, z.thr, evidence.thr, njobs){
                 
                 # AF smoothing in FOCAL regions
                 if (chrom.arm %in% paste0(focal.bed$chr, ".", focal.bed$arm)){
-                        arm.seg = FocalSegSmoothing(arm.seg, focal.bed[, !"rsid"])
+                        arm.seg = FocalSegAFSmoothing(arm.seg, focal.bed[, !"rsid"])
                 }
                 
                 # Evidence & Beta Calculation
