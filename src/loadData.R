@@ -104,6 +104,8 @@ LoadPileUp = function(sample.path,
         
         # Merge BED
         sample[["rc"]] = merge.data.table(sample[["rc"]], bed[, !c("from")], by=c("chr", "to") )
+        sample[["rc"]] = sample[["rc"]][, .(chr, from, to, rc, region_id, arm, band, rsid, gene, region)]
+        
         
         #####################################
         #### loading and processing SNPS ####

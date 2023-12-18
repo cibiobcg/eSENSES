@@ -20,9 +20,12 @@ main = function(cfg){
         # print(controls)
         
         ### CHECK CORES
-        njobs = parallel::detectCores()-1
-        if (cfg$system$njobs < njobs){
+        njobs = 1
+        maxjobs = parallel::detectCores()-1
+        if (cfg$system$njobs > njobs & cfg$system$njobs < maxjobs){
                 njobs = cfg$system$njobs
+        } else {
+                njobs = maxjobs
         }
 
 	

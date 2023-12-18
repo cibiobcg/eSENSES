@@ -87,12 +87,10 @@ getCNAStatus = function(sample.seg, z.thr, evidence.thr, on="z.score"){
         # looking for CNA without snps
         cna[sample.seg$num.mark == 0 & 
                     sample.seg$l2r.num.mark > 10 & 
-                    sample.seg$l2r.dist >= 50000 &
                     cna == "GAIN"] = "AMP"
         
         cna[sample.seg$num.mark == 0 & 
                     sample.seg$l2r.num.mark > 10 & 
-                    sample.seg$l2r.dist >= 50000 &
                     cna == "LOSS"] = "DEEPLOSS"
         
         # Keeping CNA supported by evidence (and AMP | DEEPLOSS)
@@ -251,48 +249,6 @@ ArmRCSegmentation = function(n, chr.arm, rc.arm){
 }
 
 
-FocalSegLog2RSmoothing = function(arm.seg, focal.bed){
-        
-        if (nrow(arm.seg) > 1){
-                gene.row = focal.bed[chr == unique(arm.seg$chrom) & arm == unique(arm.seg$arm), .(gene, from, to)]
-                
-                
-                from_intersection = arm.seg$loc.start <= gene.row$from & arm.seg$loc.end >= gene.row$from
-                to_intersection = arm.seg$loc.start <= gene.row$to & arm.seg$loc.end >= gene.row$to
-                in_intersection = arm.seg$loc.start >= gene.row$from & arm.seg$loc.end <= gene.row$to
-                
-                focal.seg.bool = from_intersection | to_intersection | in_intersection
-                
-                if (sum(focal.seg.bool)>0){
-                        which_TRUE = which(focal.seg.bool ==TRUE)
-                        from_as_end = which_TRUE[1]
-                        to_as_start = max(which_TRUE)
-                        
-                        arm.seg[from_as_end, loc.end=gene.row$from-1]
-                        first_l2r = arm.seg$seg.mean[from_as_end]
-                        arm.seg[to_as_start, loc.start=gene.row$to]
-                        last_l2r = arm.seg$seg.mean[to_as_start]
-                
-                        focal.seg = arm.seg[which_TRUE[!which_TRUE %in% c(to_as_start, from_as_end)], .(loc.start=gene.row$from, 
-                                                              loc.end=gene.row$to,
-                                                              num.mark=sum(num.mark),
-                                                              seg.mean=stats::weighted.mean(seg.mean, num.mark),
-                                                              l2r.dist=sum(l2r.dist),
-                                                              loc.start=min(loc.start), 
-                                                              loc.end=max(loc.end),
-                                                              num.mark=sum(num.mark),
-                                                              af.seg.mean=stats::weighted.mean(af.seg.mean, num.mark)
-                        ), by=c("ID", "chrom", "arm")]
-                        setcolorder(focal.seg, colnames(arm.seg))
-                        arm.seg = rbind(arm.seg[!focal.seg.bool], focal.seg)
-                        setorder(arm.seg, cols = "loc.start")
-                }
-        }
-        
-        return(arm.seg)
-}
-
-
 FocalSegAFSmoothing = function(arm.seg, focal.bed){
 
         if (nrow(arm.seg) > 1){
@@ -342,19 +298,57 @@ SampleSeg = function(sample.pileup, ref, min.snps, z.thr, evidence.thr, njobs){
         ll.seg = mclapply(chroms[chroms %in% names(rc.arm.ll)], FUN=function(chrom.arm){
                 
         	if (nrow(rc.arm.ll[[chrom.arm]]) == 0) stop(paste("ERRROR: split processed input" ,sample.name, chrom.arm, " empty"))
-		
-		# RC segmentation
-                arm.seg = ArmRCSegmentation(sample.name,
-                                        chrom.arm,
-                                        rc.arm.ll[[chrom.arm]])
                 
-                
-                # AF Segmentation
-                arm.seg = ArmAFSegmentation(arm.seg, sample.pileup$snps, ref)
-                
-                # AF smoothing in FOCAL regions
+                # If Focal genes then Separate focal gene region from rest
                 if (chrom.arm %in% paste0(focal.bed$chr, ".", focal.bed$arm)){
-                        arm.seg = FocalSegAFSmoothing(arm.seg, focal.bed[, !"rsid"])
+                        
+                        row_f = which( paste0(focal.bed$chr, ".", focal.bed$arm) == chrom.arm)
+                        
+                        # RC segmentation before FOCAL
+                        arm.seg.pre = ArmRCSegmentation(sample.name,
+                                                    chrom.arm,
+                                                    rc.arm.ll[[chrom.arm]][to < focal.bed$from[row_f]])
+                        # AF Segmentation
+                        arm.seg.pre = ArmAFSegmentation(arm.seg.pre, sample.pileup$snps, ref)
+                        
+                        # RC segmentation in FOCAL
+                        arm.seg.in = rc.arm.ll[[chrom.arm]][from >= focal.bed$from[row_f] & to <= focal.bed$to[row_f],
+                                                            .(ID = sample.name,
+                                                              chrom = unique(chr),
+                                                              loc.start = focal.bed$from[row_f],
+                                                              loc.end = focal.bed$to[row_f],
+                                                              num.mark = .N,
+                                                              seg.mean = mean(log2r),
+                                                              l2r.dist = focal.bed$to[row_f]-focal.bed$from[row_f],
+                                                              arm = unique(arm)
+                                                              )]
+                        # AF Segmentation
+                        arm.seg.in = ArmAFSegmentation(arm.seg.in, sample.pileup$snps, ref)
+                        
+                        #AF smoothing
+                        arm.seg.in = FocalSegAFSmoothing(arm.seg.in, focal.bed)
+                        
+                        # RC segmentation post FOCAL
+                        arm.seg.post = ArmRCSegmentation(sample.name,
+                                                        chrom.arm,
+                                                        rc.arm.ll[[chrom.arm]][from > focal.bed$to[row_f]])
+                        # AF Segmentation
+                        arm.seg.post = ArmAFSegmentation(arm.seg.post, sample.pileup$snps, ref)
+                        
+                        
+                        # Combine arm.seg
+                        arm.seg = rbind(arm.seg.pre, arm.seg.in, arm.seg.post)
+                        
+                } else {
+                        
+                        # RC segmentation
+                        arm.seg = ArmRCSegmentation(sample.name,
+                                                    chrom.arm,
+                                                    rc.arm.ll[[chrom.arm]])
+                        
+                        # AF Segmentation
+                        arm.seg = ArmAFSegmentation(arm.seg, sample.pileup$snps, ref)
+                        
                 }
                 
                 # Evidence & Beta Calculation
