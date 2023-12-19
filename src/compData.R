@@ -8,8 +8,8 @@ getGenesAndBands = function(sample.seg, sample.rc, bed.ref){
         sample.genes.bands = sapply(1:nrow(sample.seg), function(k){
                 
                 seg.chrom = sample.seg$chrom[k]
-                seg.start = sample.seg$l2r.loc.start[k]
-                seg.end = sample.seg$l2r.loc.end[k]
+                seg.start = sample.seg$loc.start[k]
+                seg.end = sample.seg$loc.end[k]
         
                 r.ids = sample.rc[chr == seg.chrom & from >= seg.start & to <= seg.end, region_id]
                 
