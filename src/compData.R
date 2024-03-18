@@ -160,7 +160,7 @@ getZscores = function(sample.seg, sample.rc, rc.ref, on="l2r.seg.mean"){
                 
                 rc.ref.l2r = rc.ref[region_id %in% r.ids, ..cols]
                 seg.l2r = apply(rc.ref.l2r, 2, median) #median -> more sensitive
-                # seg.l2r = colMeans(rc.ref.l2r, na.rm = TRUE) #mean
+                #seg.l2r = colMeans(rc.ref.l2r, na.rm = TRUE) #mean
                 std = sd(seg.l2r)
                 z.score = (seg.l2r_t - mean(seg.l2r, na.rm=T))/std
                 

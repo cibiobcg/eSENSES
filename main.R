@@ -29,7 +29,7 @@ main = function(cfg){
         }
 
 	
-	out_dir = cfg$paths$out
+	      out_dir = cfg$paths$out
         if (!dir.exists(out_dir)) dir.create(file.path(out_dir), showWarnings = FALSE, recursive = TRUE)
         
        	 
@@ -106,7 +106,7 @@ main = function(cfg){
 		}
 
 		# Save RC and SNPs
-        	fwrite(sample.pileup$rc,
+    fwrite(sample.pileup$rc,
                		file.path(out_dir, paste0(sample.pileup$ID, ".rc")),
                		sep="\t",
                		col.names = TRUE)

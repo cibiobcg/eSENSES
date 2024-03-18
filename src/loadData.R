@@ -119,7 +119,7 @@ LoadPileUp = function(sample.path,
 
         sample[["snps"]] <- sample[["snps"]][af > min.af & af < max.af & cov >= min.cov]
         
-        # filter for snps in which.snps
+        # filter for snps in which.snpsl
         if (length(which.snps) > 0) {
                 sample[["snps"]] <- sample[["snps"]][rsid %in% which.snps]
         }
