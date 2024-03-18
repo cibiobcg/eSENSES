@@ -1,6 +1,36 @@
 source("src/compData.R")
 cfg = config::get()
 
+
+## Install and loading required packages
+pkgLoad <- function( packages = "required" ) {
+  
+  if( length( packages ) == 1L && packages == "required" ) {
+    packages <- c( "config", "yaml", "data.table", "DNAcopy", "dbscan", "splus2R",
+                   "parallel", "devtools", "utils",
+                   "stats", "Rcpp"
+    )
+  }
+  
+  packagecheck <- match( packages, utils::installed.packages()[,1] )
+  
+  packagestoinstall <- packages[ is.na( packagecheck ) ]
+  
+  if( length( packagestoinstall ) > 0L ) {
+    utils::install.packages( packagestoinstall
+    )
+  } else {
+    print( "All requested packages already installed" )
+  }
+  
+  for( package in packages ) {
+    suppressPackageStartupMessages(
+      library( package, character.only = TRUE, quietly = TRUE )
+    )
+  }
+  
+}
+
 ## format how to print time
 hms_span <- function(start, end) {
   dsec <- as.numeric(difftime(end, start, unit = "secs"))
@@ -15,6 +45,9 @@ hms_span <- function(start, end) {
 
 
 main = function(cfg){
+        # Installing and Loading required packages 
+        pkgLoad("required")
+  
         controls = fread(cfg$files$controls, header = FALSE)$V1
         samples = fread(cfg$files$samples, header= FALSE)$V1
         # print(controls)
@@ -71,7 +104,7 @@ main = function(cfg){
         for (i in 1:length(samples)){
                 sample = samples[i]
                 
-		if (nchar(sample) == 0) stop(paste("ERROR invalid input path! sample index", i))
+		    if (nchar(sample) == 0) stop(paste("ERROR invalid input path! sample index", i))
                 
                 # load sample
                 sample.pileup = LoadPileUp(sample.path = sample,
