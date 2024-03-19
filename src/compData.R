@@ -277,6 +277,32 @@ FocalSegAFSmoothing = function(arm.seg, focal.bed){
 }
 
 
+
+ManualCorrection = function(sample.seg, crt.value){
+  # Ploidy Correction
+  sample.seg[, l2r.seg.mean.crct.mnl := l2r.seg.mean.crct-crt.value]
+  
+  # Zscores Calculation
+  z = getZscores(sample.seg = sample.seg, 
+                 sample.rc = sample.pileup$rc[, .(chr, to, from, region_id)], 
+                 rc.ref = ref$rc,
+                 on = "l2r.seg.mean.crct.mnl")
+
+  sample.seg[, z.score.crct.mnl := z]
+  
+  # Compute CNA Status
+  sample.seg[, cna.crct := getCNAStatus(sample.seg, z.thr, evidence.thr, on = "z.score.crct.mnl")]
+  
+  # Assign Genes and Bands
+  m = getGenesAndBands(sample.seg, sample.pileup$rc, ref$bed)
+  
+  sample.seg[, genes := m[1,]]
+  sample.seg[, bands := m[2,]]
+  
+  return(sample.seg)
+}
+
+
 SampleSeg = function(sample.pileup, ref, min.snps, z.thr, evidence.thr, njobs){
         
         focal.bed = RetrieveFocalBED(ref$bed)

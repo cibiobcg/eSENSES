@@ -1,35 +1,17 @@
-source("src/compData.R")
-cfg = config::get()
-
-
-## Install and loading required packages
-pkgLoad <- function( packages = "required" ) {
-  
-  if( length( packages ) == 1L && packages == "required" ) {
-    packages <- c( "config", "yaml", "data.table", "DNAcopy", "dbscan", "splus2R",
-                   "parallel", "devtools", "utils",
-                   "stats", "Rcpp"
-    )
-  }
-  
-  packagecheck <- match( packages, utils::installed.packages()[,1] )
-  
-  packagestoinstall <- packages[ is.na( packagecheck ) ]
-  
-  if( length( packagestoinstall ) > 0L ) {
-    utils::install.packages( packagestoinstall
-    )
-  } else {
-    print( "All requested packages already installed" )
-  }
-  
-  for( package in packages ) {
-    suppressPackageStartupMessages(
-      library( package, character.only = TRUE, quietly = TRUE )
-    )
-  }
-  
+### Install required packages
+cat("-> Installing required packages\n")
+required_packages = read.delim("./requirements.txt",  header = FALSE)$V1
+packagecheck = match(required_packages, utils::installed.packages()[,1] )
+packagestoinstall <- required_packages[ is.na( packagecheck ) ]
+if( length( packagestoinstall ) > 0L ) {
+  utils::install.packages( packagestoinstall,
+                           repos = "http://cran.csiro.au"
+  )
+} else {
+  cat( "\tAll requested packages already installed\n" )
 }
+
+cfg = config::get()
 
 ## format how to print time
 hms_span <- function(start, end) {
@@ -45,8 +27,6 @@ hms_span <- function(start, end) {
 
 
 main = function(cfg){
-        # Installing and Loading required packages 
-        pkgLoad("required")
   
         controls = fread(cfg$files$controls, header = FALSE)$V1
         samples = fread(cfg$files$samples, header= FALSE)$V1
@@ -179,6 +159,7 @@ main = function(cfg){
 
 source("src/compData.R")
 cfg = config::get()
+
 k = 1
 for (cfg.run in cfg){
 	cat("*** RUN ", k, "***\n")
