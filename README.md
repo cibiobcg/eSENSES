@@ -1,7 +1,7 @@
 # mimesis project
 
 
-## Repo setup
+## Setup
 
 Clone the repo into a desired folder:
 
@@ -9,25 +9,7 @@ Clone the repo into a desired folder:
 git clone https://github.com/cibiobcg/scna_cfDNA.git
 ```
 
-First time launching the script?
-open an R/Rstudio session and run:
-
-```R
-install.package("renv")
-renv::init()
-```
-
-<img src="img/renv_init.png" width=580>
-
-and select *Restore project from the lockfile*, selection 1.
-
-Renv will activate automatically when running ```Rscript main.R```.
-If renv does not activate When opening a console/open Rstudio session run the command:
-
-```R
-renv::activate()
-```
-
+The scripts need the R packages present in `requirements.txt` to be installed. If not presents it is going to install them when running.
 
 ## How to
 
